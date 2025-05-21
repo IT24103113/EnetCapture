@@ -7,7 +7,6 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.List;
 
 @WebServlet(urlPatterns = {"/events", "/events/*"})
 public class EventServlet extends HttpServlet {
@@ -15,58 +14,91 @@ public class EventServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String path = req.getServletPath(), pathInfo = req.getPathInfo();
+        String path = req.getServletPath();
+        String pathInfo = req.getPathInfo();
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
-            res.sendRedirect(req.getContextPath() + "/adminLogin"); return;
+            res.sendRedirect(req.getContextPath() + "/adminLogin");
+            return;
         }
+
         if ("/events".equals(path)) {
             if (pathInfo == null || "/".equals(pathInfo)) {
+                // List all events
                 req.setAttribute("events", eventService.getAllEvents());
                 req.getRequestDispatcher("/WEB-INF/views/eventList.jsp").forward(req, res);
             } else if ("/add".equals(pathInfo)) {
+                // Show add event form
                 req.getRequestDispatcher("/WEB-INF/views/addEvent.jsp").forward(req, res);
             } else if ("/edit".equals(pathInfo)) {
+                // Show edit event form
                 String idStr = req.getParameter("id");
-                if (idStr == null) { res.sendError(HttpServletResponse.SC_BAD_REQUEST); return; }
+                if (idStr == null) {
+                    res.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                    return;
+                }
                 Event event = eventService.getEventById(Integer.parseInt(idStr));
-                if (event == null) { res.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
+                if (event == null) {
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND);
+                    return;
+                }
                 req.setAttribute("event", event);
                 req.getRequestDispatcher("/WEB-INF/views/editEvent.jsp").forward(req, res);
+            } else if ("/delete".equals(pathInfo)) {
+                // Allow GET for delete (not recommended for production)
+                handleDeleteEvent(req, res);
+            } else {
+                res.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
+        } else {
+            res.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String path = req.getServletPath(), pathInfo = req.getPathInfo();
+        String path = req.getServletPath();
+        String pathInfo = req.getPathInfo();
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
-            res.sendRedirect(req.getContextPath() + "/adminLogin"); return;
+            res.sendRedirect(req.getContextPath() + "/adminLogin");
+            return;
         }
+
         if ("/events".equals(path)) {
-            if ("/add".equals(pathInfo)) handleAddEvent(req, res);
-            else if ("/edit".equals(pathInfo)) handleUpdateEvent(req, res);
-            else if ("/delete".equals(pathInfo)) handleDeleteEvent(req, res);
+            if ("/add".equals(pathInfo)) {
+                handleAddEvent(req, res);
+            } else if ("/edit".equals(pathInfo)) {
+                handleUpdateEvent(req, res);
+            } else if ("/delete".equals(pathInfo)) {
+                handleDeleteEvent(req, res);
+            } else {
+                res.sendError(HttpServletResponse.SC_NOT_FOUND);
+            }
+        } else {
+            res.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
     private void handleAddEvent(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String name = req.getParameter("name"),
-                dateStr = req.getParameter("date"),
-                location = req.getParameter("location"),
-                description = req.getParameter("description"),
-                budgetStr = req.getParameter("budget"),
-                specialInstructions = req.getParameter("specialInstructions"),
-                status = req.getParameter("status"),
-                paymentStatus = req.getParameter("paymentStatus");
+        String name = req.getParameter("name");
+        String dateStr = req.getParameter("date");
+        String location = req.getParameter("location");
+        String description = req.getParameter("description");
+        String budgetStr = req.getParameter("budget");
+        String specialInstructions = req.getParameter("specialInstructions");
+        String status = req.getParameter("status");
+        String paymentStatus = req.getParameter("paymentStatus");
+
         if (name == null || dateStr == null || location == null || description == null ||
                 budgetStr == null || specialInstructions == null || status == null || paymentStatus == null ||
                 name.isEmpty() || dateStr.isEmpty() || location.isEmpty() || description.isEmpty() ||
                 budgetStr.isEmpty() || specialInstructions.isEmpty() || status.isEmpty() || paymentStatus.isEmpty()) {
             req.setAttribute("error", "All fields required");
-            req.getRequestDispatcher("/WEB-INF/views/addEvent.jsp").forward(req, res); return;
+            req.getRequestDispatcher("/WEB-INF/views/addEvent.jsp").forward(req, res);
+            return;
         }
+
         try {
             LocalDate date = LocalDate.parse(dateStr);
             double budget = Double.parseDouble(budgetStr);
@@ -79,24 +111,27 @@ public class EventServlet extends HttpServlet {
     }
 
     private void handleUpdateEvent(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String idStr = req.getParameter("id"),
-                name = req.getParameter("name"),
-                dateStr = req.getParameter("date"),
-                location = req.getParameter("location"),
-                description = req.getParameter("description"),
-                budgetStr = req.getParameter("budget"),
-                specialInstructions = req.getParameter("specialInstructions"),
-                status = req.getParameter("status"),
-                paymentStatus = req.getParameter("paymentStatus");
+        String idStr = req.getParameter("id");
+        String name = req.getParameter("name");
+        String dateStr = req.getParameter("date");
+        String location = req.getParameter("location");
+        String description = req.getParameter("description");
+        String budgetStr = req.getParameter("budget");
+        String specialInstructions = req.getParameter("specialInstructions");
+        String status = req.getParameter("status");
+        String paymentStatus = req.getParameter("paymentStatus");
+
         if (idStr == null || name == null || dateStr == null || location == null || description == null ||
                 budgetStr == null || specialInstructions == null || status == null || paymentStatus == null ||
                 idStr.isEmpty() || name.isEmpty() || dateStr.isEmpty() || location.isEmpty() ||
                 description.isEmpty() || budgetStr.isEmpty() || specialInstructions.isEmpty() ||
                 status.isEmpty() || paymentStatus.isEmpty()) {
             req.setAttribute("error", "All fields required");
-            req.setAttribute("event", eventService.getEventById(Integer.parseInt(idStr)));
-            req.getRequestDispatcher("/WEB-INF/views/editEvent.jsp").forward(req, res); return;
+            req.setAttribute("event", eventService.getEventById(idStr != null && !idStr.isEmpty() ? Integer.parseInt(idStr) : -1));
+            req.getRequestDispatcher("/WEB-INF/views/editEvent.jsp").forward(req, res);
+            return;
         }
+
         try {
             int id = Integer.parseInt(idStr);
             LocalDate date = LocalDate.parse(dateStr);
@@ -113,9 +148,25 @@ public class EventServlet extends HttpServlet {
     private void handleDeleteEvent(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
         String idStr = req.getParameter("id");
         if (idStr == null || idStr.isEmpty()) {
-            res.sendError(HttpServletResponse.SC_BAD_REQUEST); return;
+            res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Event ID is required");
+            return;
         }
-        eventService.deleteEvent(Integer.parseInt(idStr));
-        res.sendRedirect(req.getContextPath() + "/events");
+
+        try {
+            int id = Integer.parseInt(idStr);
+            boolean deleted = eventService.deleteEvent(id);
+            HttpSession session = req.getSession();
+            if (deleted) {
+                session.setAttribute("message", "Event successfully deleted");
+            } else {
+                session.setAttribute("error", "Event with ID " + id + " not found or could not be deleted");
+            }
+            res.sendRedirect(req.getContextPath() + "/events");
+        } catch (NumberFormatException e) {
+            res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid event ID format");
+        } catch (Exception e) {
+            req.getSession().setAttribute("error", "Error deleting event: " + e.getMessage());
+            res.sendRedirect(req.getContextPath() + "/events");
+        }
     }
 }
