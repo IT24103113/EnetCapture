@@ -2,6 +2,7 @@ package com.enetcapture.controller;
 
 import com.enetcapture.model.Event;
 import com.enetcapture.service.EventService;
+import com.enetcapture.service.CustomArray;
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
@@ -14,44 +15,26 @@ public class EventServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        String path = req.getServletPath();
-        String pathInfo = req.getPathInfo();
+        String path = req.getServletPath(), pathInfo = req.getPathInfo();
         HttpSession session = req.getSession(false);
         if (session == null || session.getAttribute("user") == null) {
-            res.sendRedirect(req.getContextPath() + "/adminLogin");
-            return;
+            res.sendRedirect(req.getContextPath() + "/adminLogin"); return;
         }
-
         if ("/events".equals(path)) {
             if (pathInfo == null || "/".equals(pathInfo)) {
-                // List all events
-                req.setAttribute("events", eventService.getAllEvents());
+                CustomArray<Event> events = eventService.getAllEvents();
+                req.setAttribute("events", events.toArray(new Event[0]));
                 req.getRequestDispatcher("/WEB-INF/views/eventList.jsp").forward(req, res);
             } else if ("/add".equals(pathInfo)) {
-                // Show add event form
                 req.getRequestDispatcher("/WEB-INF/views/addEvent.jsp").forward(req, res);
             } else if ("/edit".equals(pathInfo)) {
-                // Show edit event form
                 String idStr = req.getParameter("id");
-                if (idStr == null) {
-                    res.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    return;
-                }
+                if (idStr == null) { res.sendError(HttpServletResponse.SC_BAD_REQUEST); return; }
                 Event event = eventService.getEventById(Integer.parseInt(idStr));
-                if (event == null) {
-                    res.sendError(HttpServletResponse.SC_NOT_FOUND);
-                    return;
-                }
+                if (event == null) { res.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
                 req.setAttribute("event", event);
                 req.getRequestDispatcher("/WEB-INF/views/editEvent.jsp").forward(req, res);
-            } else if ("/delete".equals(pathInfo)) {
-                // Allow GET for delete (not recommended for production)
-                handleDeleteEvent(req, res);
-            } else {
-                res.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
-        } else {
-            res.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 

@@ -3,24 +3,28 @@ package com.enetcapture.service;
 import com.enetcapture.model.Event;
 import java.io.*;
 import java.time.LocalDate;
-import java.util.*;
 
 public class EventService {
     private static EventService instance;
     private final String dataFilePath;
-    private List<Event> events;
+    private CustomArray<Event> events;
     private int nextId;
 
     private EventService() {
-        events = new ArrayList<>();
-        // Use classpath resource with fallback to default path
+        events = new CustomArray<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/events.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/events.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/events.txt").getAbsolutePath();
         System.out.println("EventService: Initializing with file path: " + dataFilePath);
         initializeFile();
         loadEvents();
-        nextId = events.stream().mapToInt(Event::getId).max().orElse(0) + 1;
+        int maxId = 0;
+        for (int i = 0; i < events.size(); i++) {
+            if (events.get(i).getId() > maxId) {
+                maxId = events.get(i).getId();
+            }
+        }
+        nextId = maxId + 1;
     }
 
     public static synchronized EventService getInstance() {
@@ -70,7 +74,8 @@ public class EventService {
     private void saveEvents() {
         File file = new File(dataFilePath);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            for (Event e : events) {
+            for (int i = 0; i < events.size(); i++) {
+                Event e = events.get(i);
                 writer.write(String.format("%d|%s|%s|%s|%s|%f|%s|%s|%s%n",
                         e.getId(), e.getName(), e.getDate(), e.getLocation(), e.getDescription(),
                         e.getBudget(), e.getSpecialInstructions(), e.getStatus(), e.getPaymentStatus()
@@ -96,7 +101,14 @@ public class EventService {
         loadEvents();
         for (int i = 0; i < events.size(); i++) {
             if (events.get(i).getId() == id) {
-                events.set(i, new Event(id, name, date, location, desc, budget, instr, status, payStatus));
+                events.get(i).setName(name);
+                events.get(i).setDate(date);
+                events.get(i).setLocation(location);
+                events.get(i).setDescription(desc);
+                events.get(i).setBudget(budget);
+                events.get(i).setSpecialInstructions(instr);
+                events.get(i).setStatus(status);
+                events.get(i).setPaymentStatus(payStatus);
                 saveEvents();
                 return true;
             }
@@ -106,18 +118,23 @@ public class EventService {
 
     public synchronized boolean deleteEvent(int id) {
         loadEvents();
-        boolean removed = events.removeIf(e -> e.getId() == id);
+        boolean removed = events.removeByPredicate(e -> e.getId() == id);
         if (removed) saveEvents();
         return removed;
     }
 
     public Event getEventById(int id) {
         loadEvents();
-        return events.stream().filter(e -> e.getId() == id).findFirst().orElse(null);
+        for (int i = 0; i < events.size(); i++) {
+            if (events.get(i).getId() == id) {
+                return events.get(i);
+            }
+        }
+        return null;
     }
 
-    public List<Event> getAllEvents() {
+    public CustomArray<Event> getAllEvents() {
         loadEvents();
-        return new ArrayList<>(events);
+        return events.copy();
     }
 }
