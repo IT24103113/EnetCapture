@@ -2,16 +2,14 @@ package com.enetcapture.service;
 
 import com.enetcapture.model.Photographer;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PhotographerService {
     private static PhotographerService instance;
     private final String dataFilePath;
-    private final List<Photographer> photographers;
+    private final CustomArray<Photographer> photographers;
 
     private PhotographerService() {
-        photographers = new ArrayList<>();
+        photographers = new CustomArray<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/photographers.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/photographers.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/photographers.txt").getAbsolutePath();
@@ -72,7 +70,8 @@ public class PhotographerService {
             initializeFile();
         }
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath))) {
-            for (Photographer photographer : photographers) {
+            for (int i = 0; i < photographers.size(); i++) {
+                Photographer photographer = photographers.get(i);
                 String photographerData = String.format("%s,%.1f%n", photographer.getName(), photographer.getRating());
                 writer.write(photographerData);
             }
@@ -85,14 +84,23 @@ public class PhotographerService {
 
     private void sortByRating() {
         int n = photographers.size();
+        // Convert CustomArray to a temporary array for easier swapping
+        Photographer[] tempArray = photographers.toArray(new Photographer[0]);
+        // Perform bubble sort on the temporary array
         for (int i = 0; i < n - 1; i++) {
             for (int j = 0; j < n - i - 1; j++) {
-                if (photographers.get(j).getRating() < photographers.get(j + 1).getRating()) {
-                    Photographer temp = photographers.get(j);
-                    photographers.set(j, photographers.get(j + 1));
-                    photographers.set(j + 1, temp);
+                if (tempArray[j].getRating() < tempArray[j + 1].getRating()) {
+                    // Swap elements in the temporary array
+                    Photographer temp = tempArray[j];
+                    tempArray[j] = tempArray[j + 1];
+                    tempArray[j + 1] = temp;
                 }
             }
+        }
+        // Clear the CustomArray and repopulate it with sorted elements
+        photographers.clear();
+        for (Photographer p : tempArray) {
+            photographers.add(p);
         }
         System.out.println("PhotographerService: Photographers sorted by rating (descending).");
     }
@@ -102,8 +110,8 @@ public class PhotographerService {
         if (name == null || name.trim().isEmpty() || rating < 0 || rating > 5) {
             return false;
         }
-        for (Photographer p : photographers) {
-            if (p.getName().equalsIgnoreCase(name)) {
+        for (int i = 0; i < photographers.size(); i++) {
+            if (photographers.get(i).getName().equalsIgnoreCase(name)) {
                 return false;
             }
         }
@@ -118,9 +126,9 @@ public class PhotographerService {
         if (newRating < 0 || newRating > 5) {
             return false;
         }
-        for (Photographer p : photographers) {
-            if (p.getName().equalsIgnoreCase(name)) {
-                p.setRating(newRating);
+        for (int i = 0; i < photographers.size(); i++) {
+            if (photographers.get(i).getName().equalsIgnoreCase(name)) {
+                photographers.get(i).setRating(newRating);
                 sortByRating();
                 savePhotographers();
                 return true;
@@ -131,15 +139,15 @@ public class PhotographerService {
 
     public synchronized boolean deletePhotographer(String name) {
         loadPhotographers();
-        boolean removed = photographers.removeIf(p -> p.getName().equalsIgnoreCase(name));
+        boolean removed = photographers.removeByPredicate(p -> p.getName().equalsIgnoreCase(name));
         if (removed) {
             savePhotographers();
         }
         return removed;
     }
 
-    public List<Photographer> getAllPhotographers() {
+    public CustomArray<Photographer> getAllPhotographers() {
         loadPhotographers();
-        return new ArrayList<>(photographers);
+        return photographers.copy();
     }
 }

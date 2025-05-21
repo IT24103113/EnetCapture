@@ -2,6 +2,7 @@ package com.enetcapture.controller;
 
 import com.enetcapture.model.Photographer;
 import com.enetcapture.service.PhotographerService;
+import com.enetcapture.service.CustomArray;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -24,7 +25,8 @@ public class PhotographerServlet extends HttpServlet {
             return;
         }
         if ("/".equals(pathInfo) || pathInfo == null) {
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             if ("admin".equals(session.getAttribute("userType"))) {
                 request.getRequestDispatcher("/WEB-INF/views/photographerList.jsp").forward(request, response);
             } else {
@@ -43,10 +45,14 @@ public class PhotographerServlet extends HttpServlet {
             }
             String name = request.getParameter("name");
             if (name != null) {
-                Photographer photographer = photographerService.getAllPhotographers().stream()
-                        .filter(p -> p.getName().equals(name))
-                        .findFirst()
-                        .orElse(null);
+                Photographer photographer = null;
+                CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+                for (int i = 0; i < photographers.size(); i++) {
+                    if (photographers.get(i).getName().equals(name)) {
+                        photographer = photographers.get(i);
+                        break;
+                    }
+                }
                 if (photographer != null) {
                     request.setAttribute("photographer", photographer);
                     request.getRequestDispatcher("/WEB-INF/views/editPhotographer.jsp").forward(request, response);
@@ -90,7 +96,8 @@ public class PhotographerServlet extends HttpServlet {
         String ratingStr = request.getParameter("rating");
         if (name == null || ratingStr == null || name.trim().isEmpty()) {
             request.setAttribute("error", "Name and rating are required");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/addPhotographer.jsp").forward(request, response);
             return;
         }
@@ -102,7 +109,8 @@ public class PhotographerServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             request.setAttribute("error", "Rating must be between 0 and 5");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/addPhotographer.jsp").forward(request, response);
             return;
         }
@@ -110,7 +118,8 @@ public class PhotographerServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/photographers");
         } else {
             request.setAttribute("error", "Photographer already exists");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/addPhotographer.jsp").forward(request, response);
         }
     }
@@ -120,7 +129,8 @@ public class PhotographerServlet extends HttpServlet {
         String ratingStr = request.getParameter("rating");
         if (name == null || ratingStr == null || name.trim().isEmpty()) {
             request.setAttribute("error", "Name and rating are required");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/editPhotographer.jsp").forward(request, response);
             return;
         }
@@ -132,7 +142,8 @@ public class PhotographerServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             request.setAttribute("error", "Rating must be between 0 and 5");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/editPhotographer.jsp").forward(request, response);
             return;
         }
@@ -140,7 +151,8 @@ public class PhotographerServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/photographers");
         } else {
             request.setAttribute("error", "Photographer not found");
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
+            CustomArray<Photographer> photographers = photographerService.getAllPhotographers();
+            request.setAttribute("photographers", photographers.toArray(new Photographer[0]));
             request.getRequestDispatcher("/WEB-INF/views/editPhotographer.jsp").forward(request, response);
         }
     }
