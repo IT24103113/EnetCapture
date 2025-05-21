@@ -3,23 +3,27 @@ package com.enetcapture.service;
 import com.enetcapture.model.Review;
 import java.io.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ReviewService {
     private static ReviewService instance;
-    private List<Review> reviews;
+    private CustomArray<Review> reviews;
     private final String dataFilePath;
     private int nextId;
 
     private ReviewService() {
-        reviews = new ArrayList<>();
+        reviews = new CustomArray<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/reviews.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/reviews.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/reviews.txt").getAbsolutePath();
         initializeFile();
         loadReviews();
-        nextId = reviews.stream().mapToInt(Review::getId).max().orElse(0) + 1;
+        int maxId = 0;
+        for (int i = 0; i < reviews.size(); i++) {
+            if (reviews.get(i).getId() > maxId) {
+                maxId = reviews.get(i).getId();
+            }
+        }
+        nextId = maxId + 1;
     }
 
     public static synchronized ReviewService getInstance() {
@@ -67,7 +71,8 @@ public class ReviewService {
 
     private void saveReviews() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath))) {
-            for (Review review : reviews) {
+            for (int i = 0; i < reviews.size(); i++) {
+                Review review = reviews.get(i);
                 String reviewData = String.format("%d|%s|%s|%.1f|%s|%d|%s%n",
                         review.getId(), review.getUsername(), review.getPhotographer(), review.getRating(),
                         review.getComment(), review.getEventId(), review.getDate());
@@ -96,7 +101,12 @@ public class ReviewService {
         loadReviews();
         for (int i = 0; i < reviews.size(); i++) {
             if (reviews.get(i).getId() == review.getId()) {
-                reviews.set(i, review);
+                reviews.get(i).setUsername(review.getUsername());
+                reviews.get(i).setPhotographer(review.getPhotographer());
+                reviews.get(i).setRating(review.getRating());
+                reviews.get(i).setComment(review.getComment());
+                reviews.get(i).setEventId(review.getEventId());
+                reviews.get(i).setDate(review.getDate());
                 saveReviews();
                 updatePhotographerRating(review.getPhotographer());
                 return true;
@@ -109,7 +119,7 @@ public class ReviewService {
         loadReviews();
         Review review = getReviewById(id);
         if (review != null) {
-            boolean removed = reviews.removeIf(r -> r.getId() == id);
+            boolean removed = reviews.removeByPredicate(r -> r.getId() == id);
             if (removed) {
                 saveReviews();
                 updatePhotographerRating(review.getPhotographer());
@@ -121,23 +131,38 @@ public class ReviewService {
 
     public Review getReviewById(int id) {
         loadReviews();
-        return reviews.stream().filter(r -> r.getId() == id).findFirst().orElse(null);
+        for (int i = 0; i < reviews.size(); i++) {
+            if (reviews.get(i).getId() == id) {
+                return reviews.get(i);
+            }
+        }
+        return null;
     }
 
-    public List<Review> getReviewsByPhotographer(String photographer) {
+    public CustomArray<Review> getReviewsByPhotographer(String photographer) {
         loadReviews();
-        return reviews.stream().filter(r -> r.getPhotographer().equalsIgnoreCase(photographer)).toList();
+        CustomArray<Review> result = new CustomArray<>();
+        for (int i = 0; i < reviews.size(); i++) {
+            if (reviews.get(i).getPhotographer().equalsIgnoreCase(photographer)) {
+                result.add(reviews.get(i));
+            }
+        }
+        return result;
     }
 
-    public List<Review> getAllReviews() {
+    public CustomArray<Review> getAllReviews() {
         loadReviews();
-        return new ArrayList<>(reviews);
+        return reviews.copy();
     }
 
     private void updatePhotographerRating(String photographer) {
-        List<Review> photographerReviews = getReviewsByPhotographer(photographer);
-        if (!photographerReviews.isEmpty()) {
-            double averageRating = photographerReviews.stream().mapToDouble(Review::getRating).average().orElse(0.0);
+        CustomArray<Review> photographerReviews = getReviewsByPhotographer(photographer);
+        if (photographerReviews.size() > 0) {
+            double sum = 0.0;
+            for (int i = 0; i < photographerReviews.size(); i++) {
+                sum += photographerReviews.get(i).getRating();
+            }
+            double averageRating = sum / photographerReviews.size();
             PhotographerService.getInstance().updatePhotographer(photographer, averageRating);
         }
     }
