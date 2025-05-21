@@ -6,6 +6,7 @@ import com.enetcapture.service.EventService;
 import com.enetcapture.service.PhotographerService;
 import com.enetcapture.service.ReviewService;
 import com.enetcapture.service.UserService;
+import com.enetcapture.service.CustomArray;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -14,7 +15,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.util.List;
 
 @WebServlet(urlPatterns = {"/", "/userLogin", "/logout", "/register", "/profile", "/profile/*", "/auth/check", "/home"})
 public class UserServlet extends HttpServlet {
@@ -200,11 +200,9 @@ public class UserServlet extends HttpServlet {
             request.getRequestDispatcher("/WEB-INF/views/editProfile.jsp").forward(request, response);
             return;
         }
-        // Only update password if a new one is provided
         String newPassword = password != null && !password.trim().isEmpty() ? password.trim() : userToUpdate.getPassword();
         User updatedUser = new User(userToUpdate.getUsername(), newPassword, fullName, request.getParameter("email") != null ? request.getParameter("email").trim() : userToUpdate.getEmail(), request.getParameter("phone") != null ? request.getParameter("phone").trim() : userToUpdate.getPhone());
         if (userService.updateUser(updatedUser)) {
-            // Update session only if it's the current user's profile
             if (userToUpdate.getUsername().equals(((User) session.getAttribute("user")).getUsername())) {
                 session.setAttribute("user", updatedUser);
             }
