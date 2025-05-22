@@ -2,8 +2,10 @@ package com.enetcapture.controller;
 
 import com.enetcapture.model.Review;
 import com.enetcapture.model.User;
+import com.enetcapture.model.Photographer;
 import com.enetcapture.service.PhotographerService;
 import com.enetcapture.service.ReviewService;
+import com.enetcapture.service.CustomArray;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -34,7 +36,8 @@ public class ReviewServlet extends HttpServlet {
                 return;
             }
             if ("/admin/reviews".equals(path) && (pathInfo == null || "/".equals(pathInfo))) {
-                request.setAttribute("reviews", reviewService.getAllReviews());
+                CustomArray<Review> reviews = reviewService.getAllReviews();
+                request.setAttribute("reviews", reviews.toArray(new Review[0]));
                 request.getRequestDispatcher("/WEB-INF/views/adminReviews.jsp").forward(request, response);
             } else if ("/admin/reviews/edit".equals(path + (pathInfo != null ? pathInfo : ""))) {
                 String idStr = request.getParameter("id");
@@ -43,7 +46,7 @@ public class ReviewServlet extends HttpServlet {
                     Review review = reviewService.getReviewById(id);
                     if (review != null) {
                         request.setAttribute("review", review);
-                        request.setAttribute("photographers", photographerService.getAllPhotographers());
+                        request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
                         request.getRequestDispatcher("/WEB-INF/views/editReview.jsp").forward(request, response);
                     } else {
                         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Review not found");
@@ -59,10 +62,11 @@ public class ReviewServlet extends HttpServlet {
             }
         } else {
             if ("/reviews".equals(path) && ("/".equals(pathInfo) || pathInfo == null)) {
-                request.setAttribute("reviews", reviewService.getAllReviews());
+                CustomArray<Review> reviews = reviewService.getAllReviews();
+                request.setAttribute("reviews", reviews.toArray(new Review[0]));
                 request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
             } else if ("/reviews/add".equals(path + (pathInfo != null ? pathInfo : ""))) {
-                request.setAttribute("photographers", photographerService.getAllPhotographers());
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
                 request.getRequestDispatcher("/WEB-INF/views/addReview.jsp").forward(request, response);
             } else if ("/reviews/edit".equals(path + (pathInfo != null ? pathInfo : ""))) {
                 String idStr = request.getParameter("id");
@@ -71,7 +75,7 @@ public class ReviewServlet extends HttpServlet {
                     Review review = reviewService.getReviewById(id);
                     if (review != null) {
                         request.setAttribute("review", review);
-                        request.setAttribute("photographers", photographerService.getAllPhotographers());
+                        request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
                         request.getRequestDispatcher("/WEB-INF/views/editReview.jsp").forward(request, response);
                     } else {
                         response.sendError(HttpServletResponse.SC_NOT_FOUND, "Review not found");
@@ -144,15 +148,17 @@ public class ReviewServlet extends HttpServlet {
                 photographer.trim().isEmpty() || comment.trim().isEmpty()) {
             request.setAttribute("error", "All fields are required");
             if (isAdd) {
-                request.setAttribute("photographers", photographerService.getAllPhotographers());
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
                 request.getRequestDispatcher("/WEB-INF/views/addReview.jsp").forward(request, response);
             } else {
                 String path = request.getServletPath() + (request.getPathInfo() != null ? request.getPathInfo() : "");
                 if (path.startsWith("/admin")) {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
+                    CustomArray<Review> reviews = reviewService.getAllReviews();
+                    request.setAttribute("reviews", reviews.toArray(new Review[0]));
                     request.getRequestDispatcher("/WEB-INF/views/adminReviews.jsp").forward(request, response);
                 } else {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
+                    CustomArray<Review> reviews = reviewService.getAllReviews();
+                    request.setAttribute("reviews", reviews.toArray(new Review[0]));
                     request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
                 }
             }
@@ -172,51 +178,37 @@ public class ReviewServlet extends HttpServlet {
         } catch (NumberFormatException e) {
             request.setAttribute("error", "Rating must be between 0 and 5, and event ID must be positive");
             if (isAdd) {
-                request.setAttribute("photographers", photographerService.getAllPhotographers());
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
                 request.getRequestDispatcher("/WEB-INF/views/addReview.jsp").forward(request, response);
             } else {
-                String path = request.getServletPath() + (request.getPathInfo() != null ? request.getPathInfo() : "");
-                if (path.startsWith("/admin")) {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
-                    request.getRequestDispatcher("/WEB-INF/views/adminReviews.jsp").forward(request, response);
-                } else {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
-                    request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
-                }
+                Review review = reviewService.getReviewById(Integer.parseInt(idStr));
+                request.setAttribute("review", review);
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+                request.getRequestDispatcher("/WEB-INF/views/editReview.jsp").forward(request, response);
             }
             return;
         }
 
-        Review review = new Review();
-        review.setUsername(username);
-        review.setPhotographer(photographer);
-        review.setRating(rating);
-        review.setComment(comment);
-        review.setEventId(eventId);
-        if (!isAdd) review.setId(id);
-
-        boolean success = isAdd ? reviewService.addReview(review) : reviewService.updateReview(review);
-        if (success) {
-            String path = request.getServletPath() + (request.getPathInfo() != null ? request.getPathInfo() : "");
-            if (path.startsWith("/admin")) {
-                response.sendRedirect(request.getContextPath() + "/admin/reviews");
-            } else {
+        Review review;
+        if (isAdd) {
+            review = new Review(0, username, photographer, rating, comment, eventId);
+            if (reviewService.addReview(review)) {
                 response.sendRedirect(request.getContextPath() + "/reviews");
+            } else {
+                request.setAttribute("error", "Failed to add review");
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+                request.getRequestDispatcher("/WEB-INF/views/addReview.jsp").forward(request, response);
             }
         } else {
-            request.setAttribute("error", "Failed to " + (isAdd ? "add" : "update") + " review");
-            if (isAdd) {
-                request.setAttribute("photographers", photographerService.getAllPhotographers());
-                request.getRequestDispatcher("/WEB-INF/views/addReview.jsp").forward(request, response);
-            } else {
+            review = new Review(id, username, photographer, rating, comment, eventId);
+            if (reviewService.updateReview(review)) {
                 String path = request.getServletPath() + (request.getPathInfo() != null ? request.getPathInfo() : "");
-                if (path.startsWith("/admin")) {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
-                    request.getRequestDispatcher("/WEB-INF/views/adminReviews.jsp").forward(request, response);
-                } else {
-                    request.setAttribute("reviews", reviewService.getAllReviews());
-                    request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
-                }
+                response.sendRedirect(request.getContextPath() + (path.startsWith("/admin") ? "/admin/reviews" : "/reviews"));
+            } else {
+                request.setAttribute("error", "Failed to update review");
+                request.setAttribute("review", review);
+                request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+                request.getRequestDispatcher("/WEB-INF/views/editReview.jsp").forward(request, response);
             }
         }
     }

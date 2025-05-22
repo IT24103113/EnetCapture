@@ -2,16 +2,14 @@ package com.enetcapture.service;
 
 import com.enetcapture.model.User;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class UserService {
     private static UserService instance;
-    private List<User> users;
+    private CustomArray<User> users;
     private final String dataFilePath;
 
     private UserService() {
-        users = new ArrayList<>();
+        users = new CustomArray<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/users.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/users.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/users.txt").getAbsolutePath();
@@ -59,7 +57,8 @@ public class UserService {
 
     private void saveUsers() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath))) {
-            for (User user : users) {
+            for (int i = 0; i < users.size(); i++) {
+                User user = users.get(i);
                 String userData = String.format("%s,%s,%s,%s,%s%n", user.getUsername(), user.getPassword(), user.getFullName(), user.getEmail(), user.getPhone());
                 writer.write(userData);
             }
@@ -98,7 +97,7 @@ public class UserService {
         loadUsers();
         User user = getUserByUsername(username);
         if (user != null) {
-            boolean removed = users.remove(user);
+            boolean removed = users.removeByPredicate(u -> u.getUsername().equals(username));
             if (removed) {
                 saveUsers();
             }
@@ -109,15 +108,17 @@ public class UserService {
 
     public User getUserByUsername(String username) {
         loadUsers();
-        return users.stream()
-                .filter(u -> u.getUsername().equals(username))
-                .findFirst()
-                .orElse(null);
+        for (int i = 0; i < users.size(); i++) {
+            if (users.get(i).getUsername().equals(username)) {
+                return users.get(i);
+            }
+        }
+        return null;
     }
 
-    public List<User> getAllUsers() {
+    public CustomArray<User> getAllUsers() {
         loadUsers();
-        return new ArrayList<>(users);
+        return users.copy();
     }
 
     public boolean authenticateUser(String username, String password) {
