@@ -4,6 +4,7 @@ import com.enetcapture.model.User;
 import com.enetcapture.model.Admin;
 import com.enetcapture.service.AdminService;
 import com.enetcapture.service.UserService;
+import com.enetcapture.service.CustomArray;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -12,7 +13,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.util.List;
 
 @WebServlet(urlPatterns = {"/adminLogin", "/admin/*", "/admins/*", "/adminDashboard", "/users", "/users/*"})
 public class AdminServlet extends HttpServlet {
@@ -54,16 +54,21 @@ public class AdminServlet extends HttpServlet {
                         return;
                     }
                     if ("/dashboard".equals(pathInfo) || pathInfo == null || "/".equals(pathInfo)) {
-                        request.setAttribute("admins", adminService.getAllAdmins());
+                        CustomArray<Admin> admins = adminService.getAllAdmins();
+                        request.setAttribute("admins", admins.toArray(new Admin[0]));
                         request.getRequestDispatcher("/WEB-INF/views/adminDashboard.jsp").forward(request, response);
                     } else if ("/edit".equals(pathInfo)) {
                         String username = request.getParameter("username");
                         System.out.println("AdminServlet: Attempting to edit admin with username: " + username);
                         if (username != null && !username.trim().isEmpty()) {
-                            Admin admin = adminService.getAllAdmins().stream()
-                                    .filter(a -> a.getUsername().equalsIgnoreCase(username))
-                                    .findFirst()
-                                    .orElse(null);
+                            Admin admin = null;
+                            CustomArray<Admin> admins = adminService.getAllAdmins();
+                            for (int i = 0; i < admins.size(); i++) {
+                                if (admins.get(i).getUsername().equalsIgnoreCase(username)) {
+                                    admin = admins.get(i);
+                                    break;
+                                }
+                            }
                             if (admin != null) {
                                 request.setAttribute("admin", admin);
                             } else {
@@ -86,9 +91,10 @@ public class AdminServlet extends HttpServlet {
                         response.sendRedirect(request.getContextPath() + "/adminLogin");
                         return;
                     }
-                    List<User> users = userService.getAllUsers();
-                    request.setAttribute("users", users);
-                    request.setAttribute("admins", adminService.getAllAdmins());
+                    CustomArray<User> users = userService.getAllUsers();
+                    CustomArray<Admin> admins = adminService.getAllAdmins();
+                    request.setAttribute("users", users.toArray(new User[0]));
+                    request.setAttribute("admins", admins.toArray(new Admin[0]));
                     request.getRequestDispatcher("/WEB-INF/views/adminDashboard.jsp").forward(request, response);
                     break;
                 case "/users":
@@ -98,7 +104,7 @@ public class AdminServlet extends HttpServlet {
                     }
                     if (pathInfo == null || "/".equals(pathInfo)) {
                         users = userService.getAllUsers();
-                        request.setAttribute("users", users);
+                        request.setAttribute("users", users.toArray(new User[0]));
                         request.getRequestDispatcher("/WEB-INF/views/userList.jsp").forward(request, response);
                     } else if ("/edit".equals(pathInfo)) {
                         String username = request.getParameter("username");
@@ -124,7 +130,7 @@ public class AdminServlet extends HttpServlet {
                         } else {
                             request.setAttribute("error", "Failed to delete user");
                             users = userService.getAllUsers();
-                            request.setAttribute("users", users);
+                            request.setAttribute("users", users.toArray(new User[0]));
                             request.getRequestDispatcher("/WEB-INF/views/userList.jsp").forward(request, response);
                         }
                     } else {
@@ -300,7 +306,8 @@ public class AdminServlet extends HttpServlet {
         String username = request.getParameter("username");
         if (username == null || username.trim().isEmpty()) {
             request.setAttribute("error", "Username is required");
-            request.setAttribute("admins", adminService.getAllAdmins());
+            CustomArray<Admin> admins = adminService.getAllAdmins();
+            request.setAttribute("admins", admins.toArray(new Admin[0]));
             request.getRequestDispatcher("/WEB-INF/views/adminDashboard.jsp").forward(request, response);
             return;
         }
@@ -308,7 +315,8 @@ public class AdminServlet extends HttpServlet {
         String currentAdmin = (String) session.getAttribute("user");
         if (currentAdmin.equals(username)) {
             request.setAttribute("error", "You cannot delete your own account");
-            request.setAttribute("admins", adminService.getAllAdmins());
+            CustomArray<Admin> admins = adminService.getAllAdmins();
+            request.setAttribute("admins", admins.toArray(new Admin[0]));
             request.getRequestDispatcher("/WEB-INF/views/adminDashboard.jsp").forward(request, response);
             return;
         }
@@ -316,7 +324,8 @@ public class AdminServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/adminDashboard");
         } else {
             request.setAttribute("error", "Failed to delete admin");
-            request.setAttribute("admins", adminService.getAllAdmins());
+            CustomArray<Admin> admins = adminService.getAllAdmins();
+            request.setAttribute("admins", admins.toArray(new Admin[0]));
             request.getRequestDispatcher("/WEB-INF/views/adminDashboard.jsp").forward(request, response);
         }
     }
