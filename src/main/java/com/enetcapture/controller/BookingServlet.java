@@ -1,12 +1,15 @@
 package com.enetcapture.controller;
 
 import com.enetcapture.model.Booking;
+import com.enetcapture.model.Event;
+import com.enetcapture.model.Photographer;
+import com.enetcapture.model.Review;
 import com.enetcapture.model.User;
 import com.enetcapture.service.BookingService;
 import com.enetcapture.service.EventService;
 import com.enetcapture.service.PhotographerService;
 import com.enetcapture.service.ReviewService;
-import com.enetcapture.service.UserService;
+import com.enetcapture.service.CustomQueue;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -16,13 +19,11 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.List;
 
 @WebServlet(urlPatterns = {"/bookings", "/bookings/*", "/userDashboard", "/userDashboard/*"})
 public class BookingServlet extends HttpServlet {
     private final BookingService bookingService = BookingService.getInstance();
     private final PhotographerService photographerService = PhotographerService.getInstance();
-    private final UserService userService = UserService.getInstance();
     private final EventService eventService = EventService.getInstance();
     private final ReviewService reviewService = ReviewService.getInstance();
 
@@ -41,11 +42,11 @@ public class BookingServlet extends HttpServlet {
                 case "/userDashboard":
                     if (pathInfo == null || "/".equals(pathInfo)) {
                         User user = (User) session.getAttribute("user");
-                        List<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
-                        request.setAttribute("bookings", userBookings);
-                        request.setAttribute("photographers", photographerService.getAllPhotographers());
-                        request.setAttribute("events", eventService.getAllEvents());
-                        request.setAttribute("reviews", reviewService.getAllReviews());
+                        CustomQueue<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
+                        request.setAttribute("bookings", userBookings.toArray(new Booking[0]));
+                        request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+                        request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
+                        request.setAttribute("reviews", reviewService.getAllReviews().toArray(new Review[0]));
                         request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
                     } else if ("/addBooking".equals(pathInfo)) {
                         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Use POST for adding bookings");
@@ -58,8 +59,8 @@ public class BookingServlet extends HttpServlet {
                         return;
                     }
                     if (pathInfo == null || "/".equals(pathInfo)) {
-                        List<Booking> bookings = bookingService.getAllBookings();
-                        request.setAttribute("bookings", bookings);
+                        CustomQueue<Booking> bookings = bookingService.getAllBookings();
+                        request.setAttribute("bookings", bookings.toArray(new Booking[0]));
                         request.getRequestDispatcher("/WEB-INF/views/bookingList.jsp").forward(request, response);
                     } else if ("/edit".equals(pathInfo)) {
                         String bookingId = request.getParameter("id");
@@ -73,8 +74,8 @@ public class BookingServlet extends HttpServlet {
                             return;
                         }
                         request.setAttribute("booking", booking);
-                        request.setAttribute("photographers", photographerService.getAllPhotographers());
-                        request.setAttribute("events", eventService.getAllEvents());
+                        request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+                        request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
                         request.getRequestDispatcher("/WEB-INF/views/editBooking.jsp").forward(request, response);
                     } else if ("/delete".equals(pathInfo)) {
                         String bookingId = request.getParameter("id");
@@ -91,8 +92,8 @@ public class BookingServlet extends HttpServlet {
                             response.sendRedirect(request.getContextPath() + "/bookings");
                         } else {
                             request.setAttribute("error", "Failed to delete booking");
-                            List<Booking> bookings = bookingService.getAllBookings();
-                            request.setAttribute("bookings", bookings);
+                            CustomQueue<Booking> bookings = bookingService.getAllBookings();
+                            request.setAttribute("bookings", bookings.toArray(new Booking[0]));
                             request.getRequestDispatcher("/WEB-INF/views/bookingList.jsp").forward(request, response);
                         }
                     } else {
@@ -155,11 +156,11 @@ public class BookingServlet extends HttpServlet {
         if (photographer == null || eventIdStr == null || eventDate == null || eventType == null ||
                 photographer.trim().isEmpty() || eventIdStr.trim().isEmpty() || eventDate.trim().isEmpty() || eventType.trim().isEmpty()) {
             request.setAttribute("error", "All fields are required");
-            List<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
-            request.setAttribute("bookings", userBookings);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
-            request.setAttribute("reviews", reviewService.getAllReviews());
+            CustomQueue<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
+            request.setAttribute("bookings", userBookings.toArray(new Booking[0]));
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
+            request.setAttribute("reviews", reviewService.getAllReviews().toArray(new Review[0]));
             request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
             return;
         }
@@ -171,11 +172,11 @@ public class BookingServlet extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             request.setAttribute("error", "Invalid event ID");
-            List<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
-            request.setAttribute("bookings", userBookings);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
-            request.setAttribute("reviews", reviewService.getAllReviews());
+            CustomQueue<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
+            request.setAttribute("bookings", userBookings.toArray(new Booking[0]));
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
+            request.setAttribute("reviews", reviewService.getAllReviews().toArray(new Review[0]));
             request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
             return;
         }
@@ -186,11 +187,11 @@ public class BookingServlet extends HttpServlet {
             booking.setEventDate(LocalDate.parse(eventDate));
         } catch (Exception e) {
             request.setAttribute("error", "Invalid event date format. Use YYYY-MM-DD.");
-            List<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
-            request.setAttribute("bookings", userBookings);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
-            request.setAttribute("reviews", reviewService.getAllReviews());
+            CustomQueue<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
+            request.setAttribute("bookings", userBookings.toArray(new Booking[0]));
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
+            request.setAttribute("reviews", reviewService.getAllReviews().toArray(new Review[0]));
             request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
             return;
         }
@@ -201,11 +202,11 @@ public class BookingServlet extends HttpServlet {
             request.getRequestDispatcher("/WEB-INF/views/bookingConfirmation.jsp").forward(request, response);
         } else {
             request.setAttribute("error", "Failed to add booking. Please try again.");
-            List<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
-            request.setAttribute("bookings", userBookings);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
-            request.setAttribute("reviews", reviewService.getAllReviews());
+            CustomQueue<Booking> userBookings = bookingService.getBookingsByUsername(user.getUsername());
+            request.setAttribute("bookings", userBookings.toArray(new Booking[0]));
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
+            request.setAttribute("reviews", reviewService.getAllReviews().toArray(new Review[0]));
             request.getRequestDispatcher("/WEB-INF/views/userDashboard.jsp").forward(request, response);
         }
     }
@@ -222,8 +223,8 @@ public class BookingServlet extends HttpServlet {
             request.setAttribute("error", "All fields are required");
             Booking booking = bookingService.getBookingById(Integer.parseInt(id));
             request.setAttribute("booking", booking);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
             request.getRequestDispatcher("/WEB-INF/views/editBooking.jsp").forward(request, response);
             return;
         }
@@ -237,8 +238,8 @@ public class BookingServlet extends HttpServlet {
             request.setAttribute("error", "Invalid event ID");
             Booking booking = bookingService.getBookingById(Integer.parseInt(id));
             request.setAttribute("booking", booking);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
             request.getRequestDispatcher("/WEB-INF/views/editBooking.jsp").forward(request, response);
             return;
         }
@@ -249,8 +250,8 @@ public class BookingServlet extends HttpServlet {
             request.setAttribute("error", "Invalid date format. Use YYYY-MM-DD.");
             Booking booking = bookingService.getBookingById(Integer.parseInt(id));
             request.setAttribute("booking", booking);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
             request.getRequestDispatcher("/WEB-INF/views/editBooking.jsp").forward(request, response);
             return;
         }
@@ -260,8 +261,8 @@ public class BookingServlet extends HttpServlet {
         } else {
             request.setAttribute("error", "Failed to update booking");
             request.setAttribute("booking", updatedBooking);
-            request.setAttribute("photographers", photographerService.getAllPhotographers());
-            request.setAttribute("events", eventService.getAllEvents());
+            request.setAttribute("photographers", photographerService.getAllPhotographers().toArray(new Photographer[0]));
+            request.setAttribute("events", eventService.getAllEvents().toArray(new Event[0]));
             request.getRequestDispatcher("/WEB-INF/views/editBooking.jsp").forward(request, response);
         }
     }
@@ -276,8 +277,8 @@ public class BookingServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/bookings");
         } else {
             request.setAttribute("error", "Failed to delete booking");
-            List<Booking> bookings = bookingService.getAllBookings();
-            request.setAttribute("bookings", bookings);
+            CustomQueue<Booking> bookings = bookingService.getAllBookings();
+            request.setAttribute("bookings", bookings.toArray(new Booking[0]));
             request.getRequestDispatcher("/WEB-INF/views/bookingList.jsp").forward(request, response);
         }
     }

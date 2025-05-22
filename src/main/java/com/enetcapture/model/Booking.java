@@ -8,7 +8,7 @@ public class Booking {
     private String photographer;
     private LocalDate eventDate;
     private String eventType;
-    private int eventId; // New field for event association
+    private int eventId;
 
     public Booking() {}
 
@@ -53,6 +53,10 @@ public class Booking {
 
     @Override
     public int hashCode() {
-        return Integer.hashCode(id);
+        return customIntHashCode(id);
+    }
+
+    private int customIntHashCode(int value) {
+        return value;
     }
 }

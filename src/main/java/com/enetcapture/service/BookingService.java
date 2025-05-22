@@ -2,25 +2,20 @@ package com.enetcapture.service;
 
 import com.enetcapture.model.Booking;
 import java.io.*;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 public class BookingService {
     private static BookingService instance;
     private final String dataFilePath;
-    private List<Booking> bookings;
-    private int nextId;
+    private final CustomQueue<Booking> bookings;
 
     private BookingService() {
-        bookings = new ArrayList<>();
+        bookings = new CustomQueue<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/bookings.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/bookings.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/bookings.txt").getAbsolutePath();
         System.out.println("BookingService: Initializing with file path: " + dataFilePath);
         initializeFile();
         loadBookings();
-        nextId = bookings.stream().mapToInt(Booking::getId).max().orElse(0) + 1;
     }
 
     public static synchronized BookingService getInstance() {
@@ -32,21 +27,17 @@ public class BookingService {
 
     private void initializeFile() {
         File file = new File(dataFilePath);
-        if (!file.exists()) {
-            try {
-                File parentDir = file.getParentFile();
-                if (!parentDir.exists()) {
-                    parentDir.mkdirs();
-                }
+        try {
+            File parentDir = file.getParentFile();
+            if (!parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            if (!file.exists()) {
                 file.createNewFile();
                 System.out.println("BookingService: Created bookings.txt at " + dataFilePath);
-            } catch (IOException e) {
-                System.err.println("BookingService: IOException while creating bookings.txt: " + e.getMessage());
-                e.printStackTrace();
-                throw new RuntimeException("Failed to create bookings.txt: " + e.getMessage());
             }
-        } else {
-            System.out.println("BookingService: bookings.txt already exists at " + dataFilePath);
+        } catch (IOException e) {
+            System.err.println("BookingService: Failed to create bookings.txt: " + e.getMessage());
         }
     }
 
@@ -54,31 +45,28 @@ public class BookingService {
         bookings.clear();
         File file = new File(dataFilePath);
         if (!file.exists()) {
-            System.err.println("BookingService: bookings.txt does not exist at " + dataFilePath + ". Creating an empty list.");
+            System.err.println("BookingService: bookings.txt does not exist at " + dataFilePath + ". Creating an empty queue.");
             return;
         }
         try (BufferedReader reader = new BufferedReader(new FileReader(dataFilePath))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
-                String[] parts = line.split("\\|");
-                if (parts.length == 6) {
-                    bookings.add(new Booking(
-                            Integer.parseInt(parts[0]),
-                            parts[1],
-                            parts[2],
-                            LocalDate.parse(parts[3]),
-                            parts[4],
-                            Integer.parseInt(parts[5])
-                    ));
-                } else {
-                    System.err.println("BookingService: Skipping malformed line in bookings.txt: " + line);
+                String[] parts = line.split(",");
+                if (parts.length == 6) { // Assuming Booking has fields: id, username, photographer, date, type, eventId
+                    int id = Integer.parseInt(parts[0].trim());
+                    String username = parts[1].trim();
+                    String photographer = parts[2].trim();
+                    String date = parts[3].trim();
+                    String type = parts[4].trim();
+                    int eventId = Integer.parseInt(parts[5].trim());
+                    Booking booking = new Booking(id, username, photographer, java.time.LocalDate.parse(date), type, eventId);
+                    bookings.enqueue(booking);
                 }
             }
             System.out.println("BookingService: Loaded " + bookings.size() + " bookings from " + dataFilePath);
-        } catch (IOException e) {
+        } catch (IOException | NumberFormatException e) {
             System.err.println("BookingService: Error loading bookings.txt: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -88,73 +76,115 @@ public class BookingService {
             initializeFile();
         }
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath))) {
-            for (Booking booking : bookings) {
-                String bookingData = String.format("%d|%s|%s|%s|%s|%d%n",
-                        booking.getId(), booking.getUsername(), booking.getPhotographer(), booking.getEventDate(),
-                        booking.getEventType(), booking.getEventId());
+            CustomQueue<Booking> tempQueue = new CustomQueue<>();
+            while (!bookings.isEmpty()) {
+                Booking booking = bookings.dequeue();
+                String bookingData = String.format("%d,%s,%s,%s,%s,%d%n",
+                        booking.getId(), booking.getUsername(), booking.getPhotographer(),
+                        booking.getEventDate().toString(), booking.getEventType(), booking.getEventId());
                 writer.write(bookingData);
+                tempQueue.enqueue(booking);
+            }
+            // Restore the queue
+            while (!tempQueue.isEmpty()) {
+                bookings.enqueue(tempQueue.dequeue());
             }
             writer.flush();
-            System.out.println("BookingService: Successfully saved " + bookings.size() + " bookings to " + dataFilePath + " at " + new java.util.Date());
+            System.out.println("BookingService: Successfully saved " + bookings.size() + " bookings to " + dataFilePath);
         } catch (IOException e) {
             System.err.println("BookingService: Error saving bookings.txt: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to save bookings to file: " + e.getMessage());
         }
     }
 
     public synchronized boolean addBooking(Booking booking) {
         loadBookings();
-        if (booking.getUsername() == null || booking.getPhotographer() == null || booking.getEventDate() == null ||
-                booking.getEventType() == null) {
-            System.err.println("BookingService: Invalid booking data for user " + booking.getUsername());
-            return false;
-        }
-        booking.setId(nextId++);
-        bookings.add(booking);
+        if (booking == null) return false;
+        bookings.enqueue(booking);
         saveBookings();
-        System.out.println("BookingService: Added booking for user " + booking.getUsername() + " with ID " + booking.getId() + " at " + new java.util.Date());
         return true;
     }
 
     public synchronized boolean updateBooking(Booking booking) {
         loadBookings();
-        for (int i = 0; i < bookings.size(); i++) {
-            if (bookings.get(i).getId() == booking.getId()) {
-                bookings.set(i, booking);
-                saveBookings();
-                System.out.println("BookingService: Updated booking ID " + booking.getId() + " at " + new java.util.Date());
-                return true;
+        if (booking == null || booking.getId() < 0) return false;
+        CustomQueue<Booking> tempQueue = new CustomQueue<>();
+        boolean updated = false;
+        while (!bookings.isEmpty()) {
+            Booking current = bookings.dequeue();
+            if (current.getId() == booking.getId()) {
+                tempQueue.enqueue(booking);
+                updated = true;
+            } else {
+                tempQueue.enqueue(current);
             }
         }
-        System.err.println("BookingService: Booking ID " + booking.getId() + " not found.");
-        return false;
+        // Restore the queue
+        while (!tempQueue.isEmpty()) {
+            bookings.enqueue(tempQueue.dequeue());
+        }
+        if (updated) saveBookings();
+        return updated;
     }
 
     public synchronized boolean deleteBooking(int id) {
         loadBookings();
-        boolean removed = bookings.removeIf(b -> b.getId() == id);
-        if (removed) {
-            saveBookings();
-            System.out.println("BookingService: Deleted booking ID " + id + " at " + new java.util.Date());
-        } else {
-            System.err.println("BookingService: Booking ID " + id + " not found.");
+        if (id < 0) return false;
+        CustomQueue<Booking> tempQueue = new CustomQueue<>();
+        boolean deleted = false;
+        while (!bookings.isEmpty()) {
+            Booking current = bookings.dequeue();
+            if (current.getId() != id) {
+                tempQueue.enqueue(current);
+            } else {
+                deleted = true;
+            }
         }
-        return removed;
+        // Restore the queue
+        while (!tempQueue.isEmpty()) {
+            bookings.enqueue(tempQueue.dequeue());
+        }
+        if (deleted) saveBookings();
+        return deleted;
+    }
+
+    public CustomQueue<Booking> getBookingsByUsername(String username) {
+        loadBookings();
+        CustomQueue<Booking> result = new CustomQueue<>();
+        CustomQueue<Booking> tempQueue = new CustomQueue<>();
+        while (!bookings.isEmpty()) {
+            Booking current = bookings.dequeue();
+            if (current.getUsername().equalsIgnoreCase(username)) {
+                result.enqueue(current);
+            }
+            tempQueue.enqueue(current);
+        }
+        // Restore the original queue
+        while (!tempQueue.isEmpty()) {
+            bookings.enqueue(tempQueue.dequeue());
+        }
+        return result;
+    }
+
+    public CustomQueue<Booking> getAllBookings() {
+        loadBookings();
+        return bookings.copy(); // Assuming CustomQueue has a copy method similar to CustomArray
     }
 
     public Booking getBookingById(int id) {
         loadBookings();
-        return bookings.stream().filter(b -> b.getId() == id).findFirst().orElse(null);
-    }
-
-    public List<Booking> getBookingsByUsername(String username) {
-        loadBookings();
-        return bookings.stream().filter(b -> b.getUsername().equalsIgnoreCase(username)).toList();
-    }
-
-    public List<Booking> getAllBookings() {
-        loadBookings();
-        return new ArrayList<>(bookings);
+        CustomQueue<Booking> tempQueue = new CustomQueue<>();
+        Booking result = null;
+        while (!bookings.isEmpty()) {
+            Booking current = bookings.dequeue();
+            if (current.getId() == id) {
+                result = current;
+            }
+            tempQueue.enqueue(current);
+        }
+        // Restore the queue
+        while (!tempQueue.isEmpty()) {
+            bookings.enqueue(tempQueue.dequeue());
+        }
+        return result;
     }
 }
