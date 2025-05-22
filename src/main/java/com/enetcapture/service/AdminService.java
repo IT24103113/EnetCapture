@@ -1,17 +1,15 @@
 package com.enetcapture.service;
 
-import com.enetcapture.model.Admin; // Updated import
+import com.enetcapture.model.Admin;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class AdminService {
     private static AdminService instance;
     private final String dataFilePath;
-    private List<Admin> admins;
+    private CustomArray<Admin> admins;
 
     private AdminService() {
-        admins = new ArrayList<>();
+        admins = new CustomArray<>();
         dataFilePath = new File(getClass().getClassLoader().getResource("WEB-INF/admins.txt") != null ?
                 getClass().getClassLoader().getResource("WEB-INF/admins.txt").getFile() :
                 "webapps/enetcapture/WEB-INF/admins.txt").getAbsolutePath();
@@ -78,7 +76,8 @@ public class AdminService {
             initializeFile();
         }
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath))) {
-            for (Admin admin : admins) {
+            for (int i = 0; i < admins.size(); i++) {
+                Admin admin = admins.get(i);
                 String adminData = String.format("%s,%s%n", admin.getUsername(), admin.getPassword());
                 writer.write(adminData);
             }
@@ -97,8 +96,8 @@ public class AdminService {
             System.err.println("AdminService: Invalid input - username and password cannot be empty.");
             return false;
         }
-        for (Admin a : admins) {
-            if (a.getUsername().equalsIgnoreCase(username)) {
+        for (int i = 0; i < admins.size(); i++) {
+            if (admins.get(i).getUsername().equalsIgnoreCase(username)) {
                 System.err.println("AdminService: Admin " + username + " already exists.");
                 return false;
             }
@@ -115,9 +114,9 @@ public class AdminService {
             System.err.println("AdminService: Password cannot be empty.");
             return false;
         }
-        for (Admin a : admins) {
-            if (a.getUsername().equalsIgnoreCase(username)) {
-                a.setPassword(newPassword);
+        for (int i = 0; i < admins.size(); i++) {
+            if (admins.get(i).getUsername().equalsIgnoreCase(username)) {
+                admins.get(i).setPassword(newPassword);
                 saveAdmins();
                 System.out.println("AdminService: Updated password for " + username);
                 return true;
@@ -129,7 +128,7 @@ public class AdminService {
 
     public synchronized boolean deleteAdmin(String username) {
         loadAdmins();
-        boolean removed = admins.removeIf(a -> a.getUsername().equalsIgnoreCase(username));
+        boolean removed = admins.removeByPredicate(a -> a.getUsername().equalsIgnoreCase(username));
         if (removed) {
             saveAdmins();
             System.out.println("AdminService: Deleted admin: " + username);
@@ -139,14 +138,15 @@ public class AdminService {
         return removed;
     }
 
-    public List<Admin> getAllAdmins() {
+    public CustomArray<Admin> getAllAdmins() {
         loadAdmins();
-        return new ArrayList<>(admins);
+        return admins.copy();
     }
 
     public boolean authenticate(String username, String password) {
         loadAdmins();
-        for (Admin a : admins) {
+        for (int i = 0; i < admins.size(); i++) {
+            Admin a = admins.get(i);
             if (a.getUsername().equalsIgnoreCase(username) && a.getPassword().equals(password)) {
                 return true;
             }
